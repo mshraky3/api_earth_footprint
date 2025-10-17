@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import nodemailer from 'nodemailer';
+import axios from 'axios';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -55,6 +56,42 @@ const createTransporter = () => {
   });
 };
 
+// Axios-based email service for external API integrations
+const emailService = {
+  // Send email via external API (for future integrations)
+  sendEmailViaAPI: async (emailData) => {
+    try {
+      // This is a placeholder for future external email API integrations
+      // You can integrate with services like SendGrid, Mailgun, etc.
+      const response = await axios.post('https://api.example.com/send-email', emailData, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.EMAIL_API_KEY || ''}`
+        },
+        timeout: 10000
+      });
+      return response.data;
+    } catch (error) {
+      console.error('External email API error:', error.message);
+      throw error;
+    }
+  },
+
+  // Validate email using external service
+  validateEmail: async (email) => {
+    try {
+      // This is a placeholder for email validation services
+      const response = await axios.get(`https://api.example.com/validate-email/${email}`, {
+        timeout: 5000
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Email validation error:', error.message);
+      return { valid: true }; // Fallback to valid if service is down
+    }
+  }
+};
+
 // Routes
 app.get('/', (req, res) => {
   res.json({ 
@@ -62,9 +99,11 @@ app.get('/', (req, res) => {
     endpoints: {
       contact: '/api/contact',
       newsletter: '/api/newsletter',
-      debug: '/api/debug'
+      debug: '/api/debug',
+      testAxios: '/api/test-axios'
     },
-    status: 'active'
+    status: 'active',
+    axiosEnabled: true
   });
 });
 
@@ -82,6 +121,34 @@ app.get('/api/debug', (req, res) => {
   });
 });
 
+// Test endpoint to verify axios connectivity
+app.get('/api/test-axios', async (req, res) => {
+  try {
+    // Test axios with a simple external API call
+    const response = await axios.get('https://httpbin.org/get', {
+      timeout: 5000,
+      headers: {
+        'User-Agent': 'Earth-Footprint-API/1.0'
+      }
+    });
+    
+    res.json({
+      success: true,
+      message: 'Axios is working correctly',
+      externalApiResponse: {
+        status: response.status,
+        data: response.data
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Axios test failed',
+      details: error.message
+    });
+  }
+});
+
 // Contact form endpoint
 app.post('/api/contact', async (req, res) => {
   try {
@@ -92,6 +159,18 @@ app.post('/api/contact', async (req, res) => {
       return res.status(400).json({ 
         error: 'Name, email, and message are required' 
       });
+    }
+
+    // Validate email format using axios (optional external validation)
+    try {
+      const emailValidation = await emailService.validateEmail(email);
+      if (!emailValidation.valid) {
+        return res.status(400).json({ 
+          error: 'Invalid email address' 
+        });
+      }
+    } catch (validationError) {
+      console.log('Email validation service unavailable, proceeding with basic validation');
     }
 
     // Check if email configuration is available
