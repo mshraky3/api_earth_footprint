@@ -18,6 +18,15 @@ const EMAIL_SECURE = process.env.EMAIL_SECURE === 'true' || true;
 const RECIPIENT_EMAIL = process.env.RECIPIENT_EMAIL;
 const RESERVE_EMAIL = process.env.RESERVE_EMAIL;
 
+// Debug environment variables
+console.log('Environment variables check:', {
+  EMAIL_USER: EMAIL_USER ? 'SET' : 'MISSING',
+  EMAIL_PASS: EMAIL_PASS ? 'SET' : 'MISSING', 
+  EMAIL_HOST: EMAIL_HOST ? 'SET' : 'MISSING',
+  RECIPIENT_EMAIL: RECIPIENT_EMAIL ? 'SET' : 'MISSING',
+  RESERVE_EMAIL: RESERVE_EMAIL ? 'SET' : 'MISSING'
+});
+
 // Validate required environment variables
 if (!EMAIL_USER || !EMAIL_PASS || !EMAIL_HOST || !RECIPIENT_EMAIL || !RESERVE_EMAIL) {
   console.error('❌ Missing required environment variables for email configuration');
@@ -52,9 +61,24 @@ app.get('/', (req, res) => {
     message: 'Earth Footprint Backend API is running!',
     endpoints: {
       contact: '/api/contact',
-      newsletter: '/api/newsletter'
+      newsletter: '/api/newsletter',
+      debug: '/api/debug'
     },
     status: 'active'
+  });
+});
+
+// Debug endpoint to check environment variables
+app.get('/api/debug', (req, res) => {
+  res.json({
+    environment: {
+      EMAIL_USER: EMAIL_USER ? 'SET' : 'MISSING',
+      EMAIL_PASS: EMAIL_PASS ? 'SET' : 'MISSING',
+      EMAIL_HOST: EMAIL_HOST ? 'SET' : 'MISSING',
+      RECIPIENT_EMAIL: RECIPIENT_EMAIL ? 'SET' : 'MISSING',
+      RESERVE_EMAIL: RESERVE_EMAIL ? 'SET' : 'MISSING'
+    },
+    nodeEnv: process.env.NODE_ENV
   });
 });
 
@@ -72,8 +96,16 @@ app.post('/api/contact', async (req, res) => {
 
     // Check if email configuration is available
     if (!EMAIL_USER || !EMAIL_PASS || !EMAIL_HOST || !RECIPIENT_EMAIL || !RESERVE_EMAIL) {
+      console.log('Email configuration missing:', {
+        EMAIL_USER: !!EMAIL_USER,
+        EMAIL_PASS: !!EMAIL_PASS,
+        EMAIL_HOST: !!EMAIL_HOST,
+        RECIPIENT_EMAIL: !!RECIPIENT_EMAIL,
+        RESERVE_EMAIL: !!RESERVE_EMAIL
+      });
       return res.status(500).json({ 
-        error: 'Email service not configured. Please contact administrator.' 
+        error: 'Email service not configured. Please contact administrator.',
+        debug: 'Missing environment variables'
       });
     }
 
