@@ -29,9 +29,9 @@ console.log('Environment variables check:', {
 });
 
 // Validate required environment variables
-if (!EMAIL_USER || !EMAIL_PASS || !EMAIL_HOST || !RECIPIENT_EMAIL || !RESERVE_EMAIL) {
+if (!EMAIL_USER || !EMAIL_PASS || !EMAIL_HOST || !RECIPIENT_EMAIL) {
   console.error('❌ Missing required environment variables for email configuration');
-  console.error('Required: EMAIL_USER, EMAIL_PASS, EMAIL_HOST, RECIPIENT_EMAIL, RESERVE_EMAIL');
+  console.error('Required: EMAIL_USER, EMAIL_PASS, EMAIL_HOST, RECIPIENT_EMAIL');
   console.error('⚠️  Server will start but email functionality will be disabled');
 }
 
@@ -174,7 +174,7 @@ app.post('/api/contact', async (req, res) => {
     }
 
     // Check if email configuration is available
-    if (!EMAIL_USER || !EMAIL_PASS || !EMAIL_HOST || !RECIPIENT_EMAIL || !RESERVE_EMAIL) {
+    if (!EMAIL_USER || !EMAIL_PASS || !EMAIL_HOST || !RECIPIENT_EMAIL) {
       console.log('Email configuration missing:', {
         EMAIL_USER: !!EMAIL_USER,
         EMAIL_PASS: !!EMAIL_PASS,
@@ -206,10 +206,11 @@ app.post('/api/contact', async (req, res) => {
       <p><em>تم الإرسال من موقع بصمة الأرض</em></p>
     `;
 
-    // Email options - send to both main and reserve email
+    // Email options - send to main email and reserve email if available
+    const toEmails = RESERVE_EMAIL ? `${RECIPIENT_EMAIL}, ${RESERVE_EMAIL}` : RECIPIENT_EMAIL;
     const mailOptions = {
       from: EMAIL_USER,
-      to: `${RECIPIENT_EMAIL}, ${RESERVE_EMAIL}`,
+      to: toEmails,
       subject: subject,
       html: emailContent
     };
@@ -245,7 +246,7 @@ app.post('/api/newsletter', async (req, res) => {
     }
 
     // Check if email configuration is available
-    if (!EMAIL_USER || !EMAIL_PASS || !EMAIL_HOST || !RECIPIENT_EMAIL || !RESERVE_EMAIL) {
+    if (!EMAIL_USER || !EMAIL_PASS || !EMAIL_HOST || !RECIPIENT_EMAIL) {
       return res.status(500).json({ 
         error: 'Email service not configured. Please contact administrator.' 
       });
@@ -261,9 +262,10 @@ app.post('/api/newsletter', async (req, res) => {
       <p><em>تم الاشتراك من موقع بصمة الأرض</em></p>
     `;
 
+    const toEmails = RESERVE_EMAIL ? `${RECIPIENT_EMAIL}, ${RESERVE_EMAIL}` : RECIPIENT_EMAIL;
     const mailOptions = {
       from: EMAIL_USER,
-      to: `${RECIPIENT_EMAIL}, ${RESERVE_EMAIL}`,
+      to: toEmails,
       subject: subject,
       html: emailContent
     };
