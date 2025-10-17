@@ -1,81 +1,93 @@
-# Earth Footprint Backend API
+# 🌍 Earth Footprint Backend
 
-Simple Express server for handling contact forms and email sending.
+Simple, single-file backend API for Earth Footprint Environmental Consultations.
 
-## 🚀 Quick Start
+## 📁 Structure
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+```
+backend/
+├── app.js              # Single application file
+├── package.json        # Dependencies
+├── vercel.json         # Vercel configuration
+└── env.vercel.example  # Environment variables template
+```
 
-2. **Create .env file:**
-   ```bash
-   cp env.example .env
-   ```
+## 🚀 Features
 
-3. **Configure your email settings in .env:**
-   ```env
-   EMAIL_SERVICE=gmail
-   EMAIL_USER=your-email@gmail.com
-   EMAIL_PASS=your-app-password
-   RECIPIENT_EMAIL=your-email@gmail.com
-   PORT=5000
-   ```
+- ✅ **Contact Form API**: `/api/contact`
+- ✅ **Newsletter API**: `/api/newsletter`
+- ✅ **CORS Enabled**: All origins allowed
+- ✅ **Email Integration**: Nodemailer with SMTP
+- ✅ **Dual Email**: Sends to main + reserve email
+- ✅ **Arabic Content**: All emails in Arabic
 
-4. **Start the server:**
-   ```bash
-   npm run dev
-   ```
+## 🔧 Environment Variables
 
-## 📧 Email Setup
+```env
+EMAIL_USER=customer-service@erthfc.com
+EMAIL_PASS=Ejc9c123@#
+EMAIL_HOST=mail.spacemail.com
+EMAIL_PORT=465
+EMAIL_SECURE=true
+RECIPIENT_EMAIL=customer-service@erthfc.com
+```
 
-### For Gmail:
-1. Enable 2-factor authentication
-2. Generate an "App Password"
-3. Use the app password in EMAIL_PASS
+## 📡 API Endpoints
 
-### For Other Providers:
-- **Outlook**: Use `hotmail` as EMAIL_SERVICE
-- **Yahoo**: Use `yahoo` as EMAIL_SERVICE
-- **Custom SMTP**: Configure manually
+### Contact Form
 
-## 🔗 API Endpoints
+```bash
+POST /api/contact
+Content-Type: application/json
 
-### POST /api/contact
-Send contact form emails.
-
-**Body:**
-```json
 {
   "name": "John Doe",
   "email": "john@example.com",
   "phone": "+1234567890",
-  "message": "Hello, I'm interested in your services.",
-  "language": "en"
+  "service": "Environmental Permits",
+  "message": "Hello, I need help with...",
+  "language": "ar"
 }
 ```
 
-### POST /api/newsletter
-Subscribe to newsletter.
+### Newsletter
 
-**Body:**
-```json
+```bash
+POST /api/newsletter
+Content-Type: application/json
+
 {
   "email": "john@example.com",
-  "language": "en"
+  "language": "ar"
 }
 ```
 
-## 🌐 CORS Enabled
-The server is configured to accept requests from your React frontend.
+## 🚀 Deployment
 
-## 📝 Environment Variables
+1. **Deploy to Vercel**:
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| EMAIL_SERVICE | Email provider | gmail |
-| EMAIL_USER | Your email | your-email@gmail.com |
-| EMAIL_PASS | App password | your-app-password |
-| RECIPIENT_EMAIL | Where to send emails | your-email@gmail.com |
-| PORT | Server port | 5000 |
+   ```bash
+   npm i -g vercel
+   cd backend
+   vercel
+   ```
+
+2. **Add Environment Variables** in Vercel Dashboard
+
+3. **Test API**:
+   ```bash
+   curl -X POST https://your-app.vercel.app/api/contact \
+     -H "Content-Type: application/json" \
+     -d '{"name":"Test","email":"test@example.com","message":"Test"}'
+   ```
+
+## 📧 Email Configuration
+
+- **SMTP Server**: mail.spacemail.com:465
+- **Security**: SSL/TLS
+- **Recipients**: customer-service@erthfc.com, alshraky3@gmail.com
+- **Language**: All emails sent in Arabic
+
+---
+
+**Simple, Clean, Production-Ready! 🚀**

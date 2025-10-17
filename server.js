@@ -1,32 +1,30 @@
-const express = require('express');
-const cors = require('cors');
-const nodemailer = require('nodemailer');
-require('dotenv').config({ path: __dirname + '/.env' });
+import express from 'express';
+import cors from 'cors';
+import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Debug environment variables
-console.log('🔧 Environment Variables:');
-console.log('EMAIL_USER:', process.env.EMAIL_USER);
-console.log('EMAIL_PASS:', process.env.EMAIL_PASS ? '***hidden***' : 'undefined');
-console.log('EMAIL_HOST:', process.env.EMAIL_HOST);
-console.log('RECIPIENT_EMAIL:', process.env.RECIPIENT_EMAIL);
-
-// Hardcoded values for testing
-const EMAIL_USER = process.env.EMAIL_USER || 'customer-service@erthfc.com';
-const EMAIL_PASS = process.env.EMAIL_PASS || 'Ejc9c123@#';
-const EMAIL_HOST = process.env.EMAIL_HOST || 'mail.spacemail.com';
+// Email configuration - all values must be provided via environment variables
+const EMAIL_USER = process.env.EMAIL_USER;
+const EMAIL_PASS = process.env.EMAIL_PASS;
+const EMAIL_HOST = process.env.EMAIL_HOST;
 const EMAIL_PORT = process.env.EMAIL_PORT || 465;
 const EMAIL_SECURE = process.env.EMAIL_SECURE === 'true' || true;
-const RECIPIENT_EMAIL = process.env.RECIPIENT_EMAIL || 'customer-service@erthfc.com';
-const RESERVE_EMAIL = 'alshraky3@gmail.com';
+const RECIPIENT_EMAIL = process.env.RECIPIENT_EMAIL;
+const RESERVE_EMAIL = process.env.RESERVE_EMAIL;
 
-console.log('🔧 Using values:');
-console.log('EMAIL_USER:', EMAIL_USER);
-console.log('EMAIL_PASS:', EMAIL_PASS ? '***hidden***' : 'undefined');
-console.log('EMAIL_HOST:', EMAIL_HOST);
-console.log('RECIPIENT_EMAIL:', RECIPIENT_EMAIL);
+// Validate required environment variables
+if (!EMAIL_USER || !EMAIL_PASS || !EMAIL_HOST || !RECIPIENT_EMAIL || !RESERVE_EMAIL) {
+  console.error('❌ Missing required environment variables for email configuration');
+  console.error('Required: EMAIL_USER, EMAIL_PASS, EMAIL_HOST, RECIPIENT_EMAIL, RESERVE_EMAIL');
+  console.error('⚠️  Server will start but email functionality will be disabled');
+}
+
 
 // Middleware
 app.use(cors());
@@ -50,7 +48,14 @@ const createTransporter = () => {
 
 // Routes
 app.get('/', (req, res) => {
-  res.json({ message: 'Earth Footprint Backend API is running!' });
+  res.json({ 
+    message: 'Earth Footprint Backend API is running!',
+    endpoints: {
+      contact: '/api/contact',
+      newsletter: '/api/newsletter'
+    },
+    status: 'active'
+  });
 });
 
 // Contact form endpoint
@@ -62,6 +67,13 @@ app.post('/api/contact', async (req, res) => {
     if (!name || !email || !message) {
       return res.status(400).json({ 
         error: 'Name, email, and message are required' 
+      });
+    }
+
+    // Check if email configuration is available
+    if (!EMAIL_USER || !EMAIL_PASS || !EMAIL_HOST || !RECIPIENT_EMAIL || !RESERVE_EMAIL) {
+      return res.status(500).json({ 
+        error: 'Email service not configured. Please contact administrator.' 
       });
     }
 
@@ -94,7 +106,7 @@ app.post('/api/contact', async (req, res) => {
     // Send email
     await transporter.sendMail(mailOptions);
 
-    res.json({ 
+    res.status(200).json({ 
       success: true, 
       message: language === 'ar' 
         ? 'تم إرسال الرسالة بنجاح!' 
@@ -102,7 +114,7 @@ app.post('/api/contact', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Email error:', error);
+    console.error('Contact form error:', error);
     res.status(500).json({ 
       error: 'Failed to send email',
       details: error.message 
@@ -118,6 +130,13 @@ app.post('/api/newsletter', async (req, res) => {
     if (!email) {
       return res.status(400).json({ 
         error: 'Email is required' 
+      });
+    }
+
+    // Check if email configuration is available
+    if (!EMAIL_USER || !EMAIL_PASS || !EMAIL_HOST || !RECIPIENT_EMAIL || !RESERVE_EMAIL) {
+      return res.status(500).json({ 
+        error: 'Email service not configured. Please contact administrator.' 
       });
     }
 
@@ -140,7 +159,7 @@ app.post('/api/newsletter', async (req, res) => {
 
     await transporter.sendMail(mailOptions);
 
-    res.json({ 
+    res.status(200).json({ 
       success: true, 
       message: language === 'ar' 
         ? 'تم الاشتراك في النشرة الإخبارية بنجاح!' 
@@ -158,5 +177,11 @@ app.post('/api/newsletter', async (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-    console.log(`Server is running`);
+  console.log(`🚀 Server running on port ${PORT}`);
+  if (EMAIL_HOST && RECIPIENT_EMAIL && RESERVE_EMAIL) {
+    console.log(`📧 Email service: ${EMAIL_HOST}`);
+    console.log(`📬 Sending emails to: ${RECIPIENT_EMAIL}, ${RESERVE_EMAIL}`);
+  } else {
+    console.log(`⚠️  Email service: Not configured (set environment variables)`);
+  }
 });
