@@ -155,6 +155,19 @@ app.post('/api/contact', async (req, res) => {
   try {
     const { name, email, phone, service, message, language, jobTitle, officeName } = req.body;
 
+    // Service name mapping to Arabic
+    const serviceNames = {
+      'permits': 'التصاريح البيئية',
+      'reports': 'التقارير البيئية الدورية',
+      'assessment': 'تقييم الأثر البيئي',
+      'audit': 'التدقيق البيئي',
+      'management': 'خطط الإدارة البيئية',
+      'rehabilitation': 'خطط إعادة التأهيل البيئي',
+      'consulting': 'الاستشارات الفنية المتخصصة',
+      'mawan': 'إصدار تصريح موان',
+      'other': 'خدمة أخرى'
+    };
+
     // Validate required fields
     if (!name || !email || !message) {
       return res.status(400).json({ 
@@ -202,7 +215,7 @@ app.post('/api/contact', async (req, res) => {
       <p><strong>الهاتف:</strong> ${phone || 'غير محدد'}</p>
       <p><strong>المسمى الوظيفي:</strong> ${jobTitle || 'غير محدد'}</p>
       <p><strong>اسم المكتب:</strong> ${officeName || 'غير محدد'}</p>
-      <p><strong>الخدمة المطلوبة:</strong> ${service || 'غير محدد'}</p>
+      <p><strong>الخدمة المطلوبة:</strong> ${serviceNames[service] || service || 'غير محدد'}</p>
       <p><strong>الرسالة:</strong></p>
       <p>${message}</p>
       <hr>
