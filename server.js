@@ -16,8 +16,9 @@ const EMAIL_PASS = process.env.EMAIL_PASS;
 const EMAIL_HOST = process.env.EMAIL_HOST;
 const EMAIL_PORT = process.env.EMAIL_PORT || 465;
 const EMAIL_SECURE = process.env.EMAIL_SECURE === 'true' || true;
-const RECIPIENT_EMAIL = process.env.RECIPIENT_EMAIL;
+const RECIPIENT_EMAIL = process.env.RECIPIENT_EMAIL || 'fahad.admin@erthfc.com';
 const RESERVE_EMAIL = process.env.RESERVE_EMAIL;
+const SENDER_EMAIL = process.env.SENDER_EMAIL || 'customer-service@erthfc.com';
 
 // Debug environment variables
 console.log('Environment variables check:', {
@@ -152,7 +153,7 @@ app.get('/api/test-axios', async (req, res) => {
 // Contact form endpoint
 app.post('/api/contact', async (req, res) => {
   try {
-    const { name, email, phone, service, message, language } = req.body;
+    const { name, email, phone, service, message, language, jobTitle, officeName } = req.body;
 
     // Validate required fields
     if (!name || !email || !message) {
@@ -199,6 +200,8 @@ app.post('/api/contact', async (req, res) => {
       <p><strong>الاسم:</strong> ${name}</p>
       <p><strong>البريد الإلكتروني:</strong> ${email}</p>
       <p><strong>الهاتف:</strong> ${phone || 'غير محدد'}</p>
+      <p><strong>المسمى الوظيفي:</strong> ${jobTitle || 'غير محدد'}</p>
+      <p><strong>اسم المكتب:</strong> ${officeName || 'غير محدد'}</p>
       <p><strong>الخدمة المطلوبة:</strong> ${service || 'غير محدد'}</p>
       <p><strong>الرسالة:</strong></p>
       <p>${message}</p>
@@ -209,7 +212,7 @@ app.post('/api/contact', async (req, res) => {
     // Email options - send to main email and reserve email if available
     const toEmails = RESERVE_EMAIL ? `${RECIPIENT_EMAIL}, ${RESERVE_EMAIL}` : RECIPIENT_EMAIL;
     const mailOptions = {
-      from: EMAIL_USER,
+      from: `"بصمة الأرض" <${SENDER_EMAIL}>`,
       to: toEmails,
       subject: subject,
       html: emailContent
@@ -264,7 +267,7 @@ app.post('/api/newsletter', async (req, res) => {
 
     const toEmails = RESERVE_EMAIL ? `${RECIPIENT_EMAIL}, ${RESERVE_EMAIL}` : RECIPIENT_EMAIL;
     const mailOptions = {
-      from: EMAIL_USER,
+      from: `"بصمة الأرض" <${SENDER_EMAIL}>`,
       to: toEmails,
       subject: subject,
       html: emailContent
