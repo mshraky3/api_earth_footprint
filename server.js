@@ -208,6 +208,39 @@ app.post('/api/reviews/clear-cache', (req, res) => {
   }
 });
 
+// Force refresh reviews endpoint (gets fresh data)
+app.get('/api/reviews/refresh', async (req, res) => {
+  try {
+    console.log('🔄 Force refresh reviews endpoint called');
+    
+    // Clear cache first
+    googleMapsService.clearCache();
+    
+    // Force refresh from API (if available)
+    const reviews = await googleMapsService.getReviewsFromAPI(true);
+    
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    res.json({
+      success: true,
+      data: reviews,
+      count: reviews.length,
+      timestamp: new Date().toISOString(),
+      refreshed: true,
+      source: 'force_refresh'
+    });
+  } catch (error) {
+    console.error('Force refresh error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to force refresh reviews',
+      details: error.message
+    });
+  }
+});
+
 // Contact form endpoint
 app.post('/api/contact', async (req, res) => {
   try {

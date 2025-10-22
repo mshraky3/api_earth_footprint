@@ -4,7 +4,7 @@ import axios from 'axios';
 class GoogleMapsService {
   constructor() {
     this.cache = new Map();
-    this.cacheTimeout = 30 * 60 * 1000; // 30 minutes
+    this.cacheTimeout = 5 * 60 * 1000; // 5 minutes (shorter cache)
     this.reviewsUrl = 'https://www.google.com/maps/place/مكتب+بصمة+الارض+للاستشارات+البيئية%E2%80%AD/@26.3436164,43.974527,17z/data=!4m14!1m5!8m4!1e1!2s117083714203564495959!3m1!1e1!3m7!1s0x157f596476ef1083:0x1627f4ca3423d980!8m2!3d26.3442221!4d43.9737974!9m1!1b1!16s%2Fg%2F11x0qjbj_2?hl=ar&entry=ttu&g_ep=EgoyMDI1MTAxNC4wIKXMDSoASAFQAw%3D%3D';
     this.activeRequests = new Map(); // Track active requests to prevent duplicates
   }
@@ -262,7 +262,7 @@ class GoogleMapsService {
   }
 
   // Google Maps Places API method (works in serverless)
-  async getReviewsFromAPI() {
+  async getReviewsFromAPI(forceRefresh = false) {
     const placeId = 'YOUR_PLACE_ID_HERE'; // Replace with your actual Place ID
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     
@@ -271,7 +271,17 @@ class GoogleMapsService {
       return this.getStaticReviews();
     }
 
+    // Check cache first (unless force refresh)
+    if (!forceRefresh) {
+      const cached = this.cache.get('api_reviews');
+      if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
+        console.log('📦 Returning cached API reviews');
+        return cached.data;
+      }
+    }
+
     try {
+      console.log('🔄 Fetching fresh reviews from Google Maps API...');
       const response = await fetch(
         `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=reviews&key=${apiKey}`
       );
@@ -279,7 +289,7 @@ class GoogleMapsService {
       const data = await response.json();
       
       if (data.result && data.result.reviews) {
-        return data.result.reviews.map((review, index) => ({
+        const reviews = data.result.reviews.map((review, index) => ({
           id: `api_${index}`,
           name: review.author_name,
           rating: review.rating,
@@ -287,6 +297,15 @@ class GoogleMapsService {
           review: review.text,
           profileImage: review.profile_photo_url || null
         }));
+        
+        // Cache the results
+        this.cache.set('api_reviews', {
+          data: reviews,
+          timestamp: Date.now()
+        });
+        
+        console.log(`✅ API reviews cached: ${reviews.length} reviews`);
+        return reviews;
       }
     } catch (error) {
       console.error('Google Maps API error:', error);
