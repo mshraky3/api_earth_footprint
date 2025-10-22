@@ -26,7 +26,8 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "nodemailer": "^7.0.9",
-    "puppeteer": "^21.5.2"
+    "puppeteer": "^21.5.2",
+    "user-agents": "^1.1.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
