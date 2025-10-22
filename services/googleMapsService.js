@@ -13,7 +13,21 @@ class GoogleMapsService {
     try {
       // Check if we're in a serverless environment
       if (process.env.VERCEL || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-        console.log('Serverless environment detected, using static reviews');
+        console.log('Serverless environment detected, trying Google Maps API first...');
+        
+        // Try Google Maps API first in serverless
+        try {
+          const apiReviews = await this.getReviewsFromAPI();
+          if (apiReviews && apiReviews.length > 0) {
+            console.log(`✅ API reviews loaded: ${apiReviews.length} reviews`);
+            return apiReviews;
+          }
+        } catch (error) {
+          console.log('⚠️ API failed, using static reviews:', error.message);
+        }
+        
+        // Fallback to static reviews
+        console.log('Using static reviews as fallback');
         return this.getStaticReviews();
       }
 
@@ -247,6 +261,53 @@ class GoogleMapsService {
     }
   }
 
+  // Google Maps Places API method (works in serverless)
+  async getReviewsFromAPI() {
+    const placeId = 'YOUR_PLACE_ID_HERE'; // Replace with your actual Place ID
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    
+    if (!apiKey) {
+      console.log('⚠️ No Google Maps API key, using static reviews');
+      return this.getStaticReviews();
+    }
+
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=reviews&key=${apiKey}`
+      );
+      
+      const data = await response.json();
+      
+      if (data.result && data.result.reviews) {
+        return data.result.reviews.map((review, index) => ({
+          id: `api_${index}`,
+          name: review.author_name,
+          rating: review.rating,
+          date: this.formatDate(review.time),
+          review: review.text,
+          profileImage: review.profile_photo_url || null
+        }));
+      }
+    } catch (error) {
+      console.error('Google Maps API error:', error);
+    }
+    
+    return this.getStaticReviews();
+  }
+
+  formatDate(timestamp) {
+    const date = new Date(timestamp * 1000);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) return 'أمس';
+    if (diffDays < 7) return `قبل ${diffDays} أيام`;
+    if (diffDays < 30) return `قبل ${Math.ceil(diffDays / 7)} أسابيع`;
+    if (diffDays < 365) return `قبل ${Math.ceil(diffDays / 30)} أشهر`;
+    return `قبل ${Math.ceil(diffDays / 365)} سنوات`;
+  }
+
   // Fallback static reviews
   getStaticReviews() {
     return [
@@ -255,49 +316,56 @@ class GoogleMapsService {
         name: "Moamen Khafagy",
         rating: 5,
         date: "قبل شهر",
-        review: "مكتب بصمة الأرض للإستشارات البيئية السرعة و الدقة والتنفيذ هو محل اهتمامهم والتواصل معهم قمة في الذوق و الإحترام و متابعة طلبات العميل لحظة بلحظة إلى أن يتم تسليم العميل التصاريح و التراخيص معتمدة .نتمنى لهم المزيد من التميز و النجاح الدائم. إن شاء الله"
+        review: "مكتب بصمة الأرض للإستشارات البيئية السرعة و الدقة والتنفيذ هو محل اهتمامهم والتواصل معهم قمة في الذوق و الإحترام و متابعة طلبات العميل لحظة بلحظة إلى أن يتم تسليم العميل التصاريح و التراخيص معتمدة .نتمنى لهم المزيد من التميز و النجاح الدائم. إن شاء الله",
+        profileImage: "https://lh3.googleusercontent.com/a/ACg8ocIpE3aKzhn_fBIV8f7H7gZCrB7blKCg7Aoi4vFue2o2ixptvQ=w36-h36-p-rp-mo-br100"
       },
       {
         id: 'static_2',
         name: "Saeed Salah 1418",
         rating: 5,
         date: "قبل شهر",
-        review: "مكتب بصمة الأرض للاستشارات البيئية من أميز المكاتب المتخصصة في المجال، ولمست فيهم الاحترافية والجدية. وأخص بالشكر المهندس فهد على تعامله الراقي وحرصه على تقديم أفضل ما عنده بكل إخلاص.واسكره علي سعة صدره وان شاء الله كل التعاملات القادمه معهم انصح فيهم جدا"
+        review: "مكتب بصمة الأرض للاستشارات البيئية من أميز المكاتب المتخصصة في المجال، ولمست فيهم الاحترافية والجدية. وأخص بالشكر المهندس فهد على تعامله الراقي وحرصه على تقديم أفضل ما عنده بكل إخلاص.واسكره علي سعة صدره وان شاء الله كل التعاملات القادمه معهم انصح فيهم جدا",
+        profileImage: "https://lh3.googleusercontent.com/a/ACg8ocLc2WaGn0mkL4i_wPe525ltu7AtYmMtlsnQe39hmqHUbS6SKA=w36-h36-p-rp-mo-br100"
       },
       {
         id: 'static_3',
         name: "عبدالله العنزي",
         rating: 5,
         date: "قبل شهرين",
-        review: "مكتب تصاريح بيئيه واستشارات شاب سعودي واقف على شغله الله يعطيه العافية"
+        review: "مكتب تصاريح بيئيه واستشارات شاب سعودي واقف على شغله الله يعطيه العافية",
+        profileImage: "https://lh3.googleusercontent.com/a/ACg8ocLvID-PivQ42DPKaiTdzA717fZtEvffx37bL66rbOXu5g5byg=w36-h36-p-rp-mo-ba3-br100"
       },
       {
         id: 'static_4',
         name: "M6B",
         rating: 5,
         date: "قبل أسبوع",
-        review: "شكر خاص لتعاملهم الراقي و خدمتهم السريعة و سرعة استجابتهم بالواتساب لين استخرجت التصاريح"
+        review: "شكر خاص لتعاملهم الراقي و خدمتهم السريعة و سرعة استجابتهم بالواتساب لين استخرجت التصاريح",
+        profileImage: "https://lh3.googleusercontent.com/a-/ALV-UjXIHRNyEK79lBa7FqdoBdEYRTBH9UqrrGyW5JScY1mIEopTFnM=w36-h36-p-rp-mo-ba2-br100"
       },
       {
         id: 'static_5',
         name: "Dodge",
         rating: 5,
         date: "قبل أسبوع",
-        review: "مكتب محترف وسريع ودقيق وتعامل أكثر من رائع . يستاهلون ألف نجمه ❤️"
+        review: "مكتب محترف وسريع ودقيق وتعامل أكثر من رائع . يستاهلون ألف نجمه ❤️",
+        profileImage: "https://lh3.googleusercontent.com/a/ACg8ocI7R2Cvss9ut4vOEyhWAIQ1UWbzbpgjhxpGVtiBqv1AOmor_w=w36-h36-p-rp-mo-br100"
       },
       {
         id: 'static_6',
         name: "جاف الإعلانية خدمات التصميم والطباعة",
         rating: 5,
         date: "قبل 3 أشهر",
-        review: "مكتب مميز وسريع بالاجراءات اصدر لنا تصريح بيئي ، والأخ فهد ما يقصر واضح وخدوم 🌷🌷"
+        review: "مكتب مميز وسريع بالاجراءات اصدر لنا تصريح بيئي ، والأخ فهد ما يقصر واضح وخدوم 🌷🌷",
+        profileImage: "https://lh3.googleusercontent.com/a-/ALV-UjXK1dl7bmEx32NKSeEg3aOn3nmp3NI_VJtozkMlQT7Q57Qk7kQn=w36-h36-p-rp-mo-br100"
       },
       {
         id: 'static_7',
         name: "Tarem Saleh",
         rating: 5,
         date: "قبل شهر",
-        review: "سريع بالانجاز التصاريح"
+        review: "سريع بالانجاز التصاريح",
+        profileImage: "https://lh3.googleusercontent.com/a/ACg8ocLE7Y3LhnwlOk2FxjrjLtV-g2esx1zrV3zEvbitlpZf_JfGtA=w36-h36-p-rp-mo-br100"
       }
     ];
   }

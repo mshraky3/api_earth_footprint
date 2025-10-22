@@ -39,7 +39,15 @@ if (!EMAIL_USER || !EMAIL_PASS || !EMAIL_HOST || !RECIPIENT_EMAIL) {
 
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: [
+    'https://erthfc.com',
+    'https://www.erthfc.com',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ],
+  credentials: true
+}));
 app.use(express.json());
 
 // Compression middleware
