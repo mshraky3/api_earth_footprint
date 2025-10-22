@@ -1,716 +1,275 @@
-import puppeteer from 'puppeteer';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
 class GoogleMapsService {
   constructor() {
     this.cache = new Map();
-    this.cacheTimeout = 5 * 60 * 1000; // 5 minutes (shorter cache)
-    this.reviewsUrl = 'https://www.google.com/maps/place/مكتب+بصمة+الارض+للاستشارات+البيئية%E2%80%AD/@26.3436164,43.974527,17z/data=!4m14!1m5!8m4!1e1!2s117083714203564495959!3m1!1e1!3m7!1s0x157f596476ef1083:0x1627f4ca3423d980!8m2!3d26.3442221!4d43.9737974!9m1!1b1!16s%2Fg%2F11x0qjbj_2?hl=ar&entry=ttu&g_ep=EgoyMDI1MTAxNC4wIKXMDSoASAFQAw%3D%3D';
-    this.activeRequests = new Map(); // Track active requests to prevent duplicates
+    this.cacheTimeout = 2 * 60 * 1000; // 2 minutes cache for live data
+    this.businessUrl = 'https://www.google.com/maps/place/مكتب+بصمة+الارض+للاستشارات+البيئية/@26.3436164,43.974527,17z';
+    this.placeId = 'ChIJN1t_tDeuEmsRUsoyG83frY4';
   }
 
   async getReviews() {
     try {
-      console.log('🔄 Fetching live reviews...');
-      
-      // Check if we're in a serverless environment
-      if (process.env.VERCEL || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-        console.log('Serverless environment detected, trying multiple approaches...');
-        
-        // Try Google Maps API first (if API key is available)
-        try {
-          const apiReviews = await this.getReviewsFromAPI();
-          if (apiReviews && apiReviews.length > 0) {
-            console.log(`✅ API reviews loaded: ${apiReviews.length} reviews`);
-            return apiReviews;
-          }
-        } catch (error) {
-          console.log('⚠️ API failed, trying web scraping:', error.message);
-        }
-        
-        // Try web scraping as fallback
-        try {
-          const scrapedReviews = await this.getReviewsFromWebScraping();
-          if (scrapedReviews && scrapedReviews.length > 0) {
-            console.log(`✅ Scraped reviews loaded: ${scrapedReviews.length} reviews`);
-            return scrapedReviews;
-          }
-        } catch (error) {
-          console.log('⚠️ Web scraping failed, using static reviews:', error.message);
-        }
-        
-        // Final fallback to static reviews
-        console.log('Using static reviews as final fallback');
-        return this.getStaticReviews();
-      }
+      console.log('🔄 Fetching live reviews from Google Maps...');
 
       // Check cache first
-      const cached = this.cache.get('reviews');
+      const cached = this.cache.get('live_reviews');
       if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
-        console.log('Returning cached reviews');
+        console.log('📦 Returning cached live reviews');
         return cached.data;
       }
 
-      // Check if there's already an active request
-      if (this.activeRequests.has('reviews')) {
-        console.log('Request already in progress, waiting...');
-        return await this.activeRequests.get('reviews');
-      }
-
-      console.log('Fetching fresh reviews from Google Maps...');
-      const requestPromise = this.scrapeReviews();
-      this.activeRequests.set('reviews', requestPromise);
+      // Try multiple scraping approaches
+      const reviews = await this.scrapeLiveReviews();
       
-      try {
-        const reviews = await requestPromise;
-        
-        // Cache the results
-        this.cache.set('reviews', {
+      if (reviews && reviews.length > 0) {
+        // Cache the live results
+        this.cache.set('live_reviews', {
           data: reviews,
           timestamp: Date.now()
         });
 
+        console.log(`✅ Live scraping successful: ${reviews.length} reviews`);
         return reviews;
-      } finally {
-        // Clean up active request
-        this.activeRequests.delete('reviews');
       }
+
+      // If no live data, return empty array (no static fallback)
+      console.log('❌ No live reviews found');
+      return [];
+      
     } catch (error) {
-      console.error('Error fetching reviews:', error);
-      console.log('Falling back to static reviews');
-      return this.getStaticReviews();
+      console.error('Live scraping error:', error);
+      return [];
     }
   }
 
-  async scrapeReviews() {
-    // Check if we're in a serverless environment (Vercel, Netlify, etc.)
-    if (process.env.VERCEL || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-      console.log('Serverless environment detected, using static reviews');
-      return this.getStaticReviews();
-    }
-
-    let browser;
-    try {
-      browser = await puppeteer.launch({
-        headless: 'new',
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-gpu',
-          '--disable-web-security',
-          '--disable-features=VizDisplayCompositor',
-          '--disable-background-timer-throttling',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-renderer-backgrounding',
-          '--disable-extensions',
-          '--disable-plugins',
-          '--disable-default-apps',
-          '--disable-sync',
-          '--disable-translate',
-          '--hide-scrollbars',
-          '--mute-audio',
-          '--no-default-browser-check',
-          '--no-pings'
-        ]
-      });
-
-      const page = await browser.newPage();
-      
-      // Set user agent to avoid detection
-      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-      
-      // Set viewport
-      await page.setViewport({ width: 1920, height: 1080 });
-
-      // Block unnecessary resources for faster loading
-      await page.setRequestInterception(true);
-      page.on('request', (req) => {
-        const resourceType = req.resourceType();
-        if (['image', 'media'].includes(resourceType)) {
-          req.abort();
-        } else {
-          req.continue();
-        }
-      });
-
-      console.log('Navigating to Google Maps reviews...');
-      await page.goto(this.reviewsUrl, { 
-        waitUntil: 'domcontentloaded',
-        timeout: 20000 
-      });
-
-      // Wait for reviews to load and scroll to load more
-      await page.waitForSelector('.jftiEf', { timeout: 15000 });
-      
-      // Scroll to load more reviews
-      await page.evaluate(() => {
-        const scrollContainer = document.querySelector('.m6QErb');
-        if (scrollContainer) {
-          scrollContainer.scrollTop = scrollContainer.scrollHeight;
-        }
-      });
-      
-      // Wait a bit for more reviews to load
-      await page.waitForTimeout(2000);
-
-      // Extract reviews data with better selectors
-      const reviews = await page.evaluate(() => {
-        const reviewElements = document.querySelectorAll('.jftiEf');
-        const reviews = [];
-
-        reviewElements.forEach((element, index) => {
-          try {
-            // Extract reviewer name
-            const nameElement = element.querySelector('.d4r55, .TSUbDb, .d4r55');
-            const name = nameElement ? nameElement.textContent.trim() : `Reviewer ${index + 1}`;
-
-            // Extract profile image
-            const profileImageElement = element.querySelector('img[data-src], img[src]');
-            let profileImage = null;
-            if (profileImageElement) {
-              profileImage = profileImageElement.getAttribute('data-src') || 
-                           profileImageElement.getAttribute('src') || 
-                           profileImageElement.src;
-              
-              // Clean up the image URL
-              if (profileImage && profileImage.startsWith('//')) {
-                profileImage = 'https:' + profileImage;
-              }
-            }
-
-            // Extract rating
-            const ratingElement = element.querySelector('.kvMYJc, .Fam1ne, [aria-label*="star"]');
-            let numericRating = 5;
-            if (ratingElement) {
-              const ratingText = ratingElement.getAttribute('aria-label') || ratingElement.textContent;
-              const ratingMatch = ratingText.match(/(\d+)/);
-              numericRating = ratingMatch ? parseInt(ratingMatch[1]) : 5;
-            }
-
-            // Extract date
-            const dateElement = element.querySelector('.rsqaWe, .DU9Pgb, .p2TkOb');
-            let date = dateElement ? dateElement.textContent.trim() : 'Recently';
-            
-            // Clean up unwanted characters from date
-            date = date.replace(/[\uE000-\uF8FF]/g, ''); // Remove private use area characters
-            date = date.replace(/[^\u0000-\u007F\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g, ''); // Keep only ASCII and Arabic characters
-            date = date.trim();
-
-            // Extract review text - look for the main review content, not responses
-            const textElement = element.querySelector('.wiI7pd, .MyEned, .Jtu6Td');
-            let text = textElement ? textElement.textContent.trim() : '';
-
-            // Clean up unwanted characters from review text
-            text = text.replace(/[\uE000-\uF8FF]/g, ''); // Remove private use area characters
-            text = text.replace(/[^\u0000-\u007F\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g, ''); // Keep only ASCII and Arabic characters
-            text = text.trim();
-
-            // Skip if this looks like a response (contains "رد" or is very short)
-            if (text.includes('رد') || text.includes('شكراً') || text.length < 20) {
-              return;
-            }
-
-            if (text && text.length > 10) {
-              reviews.push({
-                id: `review_${index}`,
-                name: name,
-                rating: numericRating,
-                date: date,
-                review: text,
-                profileImage: profileImage
-              });
-            }
-          } catch (error) {
-            console.log('Error extracting review:', error);
-          }
-        });
-
-        return reviews;
-      });
-
-      console.log(`Successfully scraped ${reviews.length} reviews`);
-      return reviews;
-
-    } catch (error) {
-      console.error('Scraping error:', error);
-      console.log('Falling back to static reviews due to scraping error');
-      return this.getStaticReviews();
-    } finally {
-      if (browser) {
-        await browser.close();
-      }
-    }
-  }
-
-  // Web scraping method optimized for serverless
-  async getReviewsFromWebScraping() {
-    try {
-      console.log('🌐 Starting web scraping for live reviews...');
-      
-      // Check cache first
-      const cached = this.cache.get('scraped_reviews');
-      if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
-        console.log('📦 Returning cached scraped reviews');
-        return cached.data;
-      }
-
-      // For serverless environments, try a more aggressive approach
-      if (process.env.VERCEL || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-        console.log('🚀 Serverless environment - using enhanced scraping...');
-        
-        // Try to get live data with multiple methods
-        const liveReviews = await this.getLiveReviewsForServerless();
-        if (liveReviews && liveReviews.length > 0) {
-          console.log(`✅ Serverless scraping successful: ${liveReviews.length} reviews`);
-          
-          // Cache the results
-          this.cache.set('scraped_reviews', {
-            data: liveReviews,
-            timestamp: Date.now()
-          });
-          
-          return liveReviews;
-        }
-      }
-
-      // Try multiple approaches for better success rate
-      const approaches = [
-        () => this.scrapeWithCheerio(),
-        () => this.scrapeWithAxios(),
-        () => this.scrapeWithPuppeteerLite()
-      ];
-
-      for (const approach of approaches) {
-        try {
-          const reviews = await approach();
-          if (reviews && reviews.length > 0) {
-            console.log(`✅ Scraped ${reviews.length} reviews successfully`);
-            
-            // Cache the results
-            this.cache.set('scraped_reviews', {
-              data: reviews,
-              timestamp: Date.now()
-            });
-            
-            return reviews;
-          }
-        } catch (error) {
-          console.log(`⚠️ Scraping approach failed: ${error.message}`);
-          continue;
-        }
-      }
-
-      console.log('❌ All scraping approaches failed, using static reviews');
-      return this.getStaticReviews();
-      
-    } catch (error) {
-      console.error('Web scraping error:', error);
-      return this.getStaticReviews();
-    }
-  }
-
-  // Enhanced method specifically for serverless environments
-  async getLiveReviewsForServerless() {
-    try {
-      console.log('🔄 Attempting serverless-optimized live scraping...');
-      
-      // Try to get fresh data by combining static reviews with live indicators
-      const staticReviews = this.getStaticReviews();
-      
-      // Add some live indicators to make it appear more dynamic
-      const liveReviews = staticReviews.map((review, index) => ({
-        ...review,
-        id: `live_${index}`,
-        date: this.getRandomRecentDate(),
-        isLive: true,
-        scrapedAt: new Date().toISOString()
-      }));
-
-      // Add a new "live" review to show the system is working
-      liveReviews.unshift({
-        id: 'live_new',
-        name: 'نظام مباشر',
-        rating: 5,
-        date: 'قبل دقائق',
-        review: 'تم تحديث النظام بنجاح - البيانات المباشرة تعمل بشكل صحيح',
-        profileImage: null,
-        isLive: true,
-        scrapedAt: new Date().toISOString()
-      });
-
-      console.log(`✅ Generated ${liveReviews.length} live reviews for serverless`);
-      return liveReviews;
-      
-    } catch (error) {
-      console.error('Serverless live scraping error:', error);
-      return null;
-    }
-  }
-
-  // Helper method to generate random recent dates
-  getRandomRecentDate() {
-    const dates = [
-      'قبل ساعة',
-      'قبل ساعتين', 
-      'قبل 3 ساعات',
-      'قبل 4 ساعات',
-      'قبل 5 ساعات',
-      'قبل 6 ساعات',
-      'قبل 7 ساعات',
-      'قبل 8 ساعات',
-      'قبل 9 ساعات',
-      'قبل 10 ساعات',
-      'قبل 11 ساعة',
-      'قبل 12 ساعة',
-      'قبل 13 ساعة',
-      'قبل 14 ساعة',
-      'قبل 15 ساعة',
-      'قبل 16 ساعة',
-      'قبل 17 ساعة',
-      'قبل 18 ساعة',
-      'قبل 19 ساعة',
-      'قبل 20 ساعة',
-      'قبل 21 ساعة',
-      'قبل 22 ساعة',
-      'قبل 23 ساعة',
-      'أمس',
-      'قبل يومين',
-      'قبل 3 أيام',
-      'قبل 4 أيام',
-      'قبل 5 أيام',
-      'قبل أسبوع',
-      'قبل أسبوعين',
-      'قبل 3 أسابيع',
-      'قبل شهر'
+  async scrapeLiveReviews() {
+    const approaches = [
+      () => this.scrapeWithGoogleMapsAPI(),
+      () => this.scrapeWithDirectRequest(),
+      () => this.scrapeWithAlternativeURLs()
     ];
-    
-    return dates[Math.floor(Math.random() * dates.length)];
+
+    for (const approach of approaches) {
+      try {
+        const reviews = await approach();
+        if (reviews && reviews.length > 0) {
+          return reviews;
+        }
+      } catch (error) {
+        console.log(`⚠️ Scraping approach failed: ${error.message}`);
+        continue;
+      }
+    }
+
+    return [];
   }
 
-  // Method 1: Cheerio-based scraping (lightweight)
-  async scrapeWithCheerio() {
-    try {
-      console.log('🌐 Attempting Cheerio scraping...');
-      
-      // Try multiple URLs for better success rate
-      const urls = [
-        'https://www.google.com/maps/place/مكتب+بصمة+الارض+للاستشارات+البيئية/@26.3436164,43.974527,17z',
-        'https://maps.google.com/maps?cid=117083714203564495959',
-        'https://www.google.com/maps/place/?q=place_id:ChIJN1t_tDeuEmsRUsoyG83frY4'
-      ];
+  // Method 1: Try Google Maps API if key is available
+  async scrapeWithGoogleMapsAPI() {
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    
+    if (!apiKey) {
+      throw new Error('No Google Maps API key available');
+    }
 
-      for (const url of urls) {
-        try {
-          console.log(`Trying URL: ${url}`);
-          const response = await axios.get(url, {
+    try {
+      console.log('🌐 Trying Google Maps Places API...');
+      
+      const response = await axios.get(
+        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${this.placeId}&fields=reviews&key=${apiKey}`,
+        { timeout: 10000 }
+      );
+      
+      if (response.data.result && response.data.result.reviews) {
+        const reviews = response.data.result.reviews.map((review, index) => ({
+          id: `api_${Date.now()}_${index}`,
+          name: review.author_name,
+          rating: review.rating,
+          date: this.formatDate(review.time),
+          review: review.text,
+          profileImage: review.profile_photo_url || null,
+          isLive: true,
+          source: 'google_maps_api'
+        }));
+        
+        console.log(`✅ API returned ${reviews.length} reviews`);
+        return reviews;
+      }
+    } catch (error) {
+      console.log('Google Maps API failed:', error.message);
+      throw error;
+    }
+  }
+
+  // Method 2: Direct scraping with enhanced headers
+  async scrapeWithDirectRequest() {
+    try {
+      console.log('🌐 Trying direct scraping...');
+      
+      const response = await axios.get(this.businessUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
           'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
           'Accept-Encoding': 'gzip, deflate, br',
           'Connection': 'keep-alive',
-              'Upgrade-Insecure-Requests': '1',
-              'Cache-Control': 'no-cache',
-              'Pragma': 'no-cache',
-              'Referer': 'https://www.google.com/',
-              'Sec-Fetch-Dest': 'document',
-              'Sec-Fetch-Mode': 'navigate',
-              'Sec-Fetch-Site': 'none'
-            },
-            timeout: 15000,
-            maxRedirects: 5
-          });
+          'Upgrade-Insecure-Requests': '1',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'none',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        timeout: 15000,
+        maxRedirects: 5
+      });
 
-          console.log(`✅ Got response from ${url}, length: ${response.data.length}`);
-          
-          const $ = cheerio.load(response.data);
-          const reviews = [];
-
-          // Look for JSON data in the HTML (Google Maps embeds data)
-          const jsonMatches = response.data.match(/window\.APP_INITIALIZATION_STATE\s*=\s*(\[.*?\]);/g);
-          if (jsonMatches) {
-            console.log('Found JSON data in response');
-            // Try to extract reviews from JSON data
-            try {
-              for (const match of jsonMatches) {
-                const jsonStr = match.replace(/window\.APP_INITIALIZATION_STATE\s*=\s*/, '').replace(/;$/, '');
-                const data = JSON.parse(jsonStr);
-                // Navigate the complex JSON structure to find reviews
-                // This is a simplified approach - you'd need to traverse the actual structure
-                console.log('Parsed JSON data structure');
-              }
-            } catch (parseError) {
-              console.log('Failed to parse JSON data:', parseError.message);
-            }
-          }
-
-          // Try different selectors for Google Maps reviews
-          const reviewSelectors = [
-            '.jftiEf',
-            '.wiI7pd', 
-            '.MyEned',
-            '[data-review-id]',
-            '.section-review',
-            '.review-item',
-            '.review'
-          ];
-
-          for (const selector of reviewSelectors) {
-            const elements = $(selector);
-            console.log(`Found ${elements.length} elements with selector: ${selector}`);
-            
-            elements.each((index, element) => {
-              try {
-                const $el = $(element);
-                
-                // Extract name
-                const name = $el.find('.d4r55, .TSUbDb, .d4r55, .author-name, .reviewer-name').first().text().trim() || 
-                            $el.find('[data-review-id]').attr('data-review-id') || 
-                            `Reviewer ${index + 1}`;
-
-                // Extract rating
-                const ratingElement = $el.find('.kvMYJc, .Fam1ne, [aria-label*="star"], .rating, .stars').first();
-                let rating = 5;
-                if (ratingElement.length) {
-                  const ratingText = ratingElement.attr('aria-label') || ratingElement.text();
-                  const ratingMatch = ratingText.match(/(\d+)/);
-                  rating = ratingMatch ? parseInt(ratingMatch[1]) : 5;
-                }
-
-                // Extract date
-                const date = $el.find('.rsqaWe, .DU9Pgb, .p2TkOb, .review-date, .date').first().text().trim() || 'Recently';
-
-                // Extract review text
-                const reviewText = $el.find('.wiI7pd, .MyEned, .Jtu6Td, .review-text, .review-content').first().text().trim();
-
-                // Extract profile image
-                const profileImg = $el.find('img[data-src], img[src]').first().attr('data-src') || 
-                                 $el.find('img[data-src], img[src]').first().attr('src');
-
-                if (reviewText && reviewText.length > 10) {
-                  reviews.push({
-                    id: `cheerio_${index}`,
-                    name: name,
-                    rating: rating,
-                    date: date,
-                    review: reviewText,
-                    profileImage: profileImg
-                  });
-                }
-              } catch (error) {
-                console.log('Error parsing review element:', error.message);
-              }
-            });
-
-            if (reviews.length > 0) {
-              console.log(`✅ Cheerio found ${reviews.length} reviews with selector: ${selector}`);
-              return reviews;
-            }
-          }
-
-          // If no reviews found with selectors, try to extract from any text content
-          const allText = $('body').text();
-          if (allText.includes('مكتب بصمة الأرض') || allText.includes('بصمة الأرض')) {
-            console.log('Found business name in content, but no structured reviews');
-            // Return some mock live data to simulate scraping success
-            return [
-              {
-                id: 'live_1',
-                name: 'Live Test User',
-                rating: 5,
-                date: 'قبل ساعة',
-                review: 'تم اختبار النظام بنجاح - هذا مراجعة مباشرة من النظام',
-                profileImage: null
-              }
-            ];
-          }
-
-        } catch (urlError) {
-          console.log(`❌ URL ${url} failed: ${urlError.message}`);
-          continue;
-        }
-      }
-
-      return [];
+      return this.parseReviewsFromHTML(response.data);
+      
     } catch (error) {
-      console.error('Cheerio scraping error:', error.message);
+      console.log('Direct scraping failed:', error.message);
       throw error;
     }
   }
 
-  // Method 2: Enhanced Axios scraping
-  async scrapeWithAxios() {
+  // Method 3: Try alternative URLs
+  async scrapeWithAlternativeURLs() {
+    const urls = [
+      'https://maps.google.com/maps?cid=117083714203564495959',
+      'https://www.google.com/maps/place/?q=place_id:' + this.placeId,
+      'https://www.google.com/maps/search/مكتب+بصمة+الارض+للاستشارات+البيئية'
+    ];
+
+    for (const url of urls) {
+      try {
+        console.log(`🌐 Trying alternative URL: ${url}`);
+        
+        const response = await axios.get(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
+            'Referer': 'https://www.google.com/',
+            'Cache-Control': 'no-cache'
+          },
+          timeout: 10000
+        });
+
+        const reviews = this.parseReviewsFromHTML(response.data);
+        if (reviews && reviews.length > 0) {
+          return reviews;
+        }
+      } catch (error) {
+        console.log(`URL ${url} failed: ${error.message}`);
+        continue;
+      }
+    }
+
+    throw new Error('All alternative URLs failed');
+  }
+
+  // Parse reviews from HTML content
+  parseReviewsFromHTML(html) {
     try {
-      // Try different URLs and approaches
-      const urls = [
-        this.reviewsUrl,
-        'https://www.google.com/maps/place/مكتب+بصمة+الارض+للاستشارات+البيئية/@26.3436164,43.974527,17z',
-        'https://maps.google.com/maps?cid=117083714203564495959'
+      const $ = cheerio.load(html);
+      const reviews = [];
+
+      // Look for JSON data embedded in the page
+      const jsonMatches = html.match(/window\.APP_INITIALIZATION_STATE\s*=\s*(\[.*?\]);/g);
+      if (jsonMatches) {
+        console.log('Found embedded JSON data');
+        const jsonReviews = this.extractReviewsFromJSON(jsonMatches);
+        if (jsonReviews.length > 0) {
+          return jsonReviews;
+        }
+      }
+
+      // Try different selectors for reviews
+      const selectors = [
+        '.jftiEf',
+        '.wiI7pd',
+        '.MyEned',
+        '[data-review-id]',
+        '.section-review'
       ];
 
-      for (const url of urls) {
-        try {
-          const response = await axios.get(url, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-              'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
-              'Referer': 'https://www.google.com/',
-              'Cache-Control': 'no-cache'
-        },
-        timeout: 15000
-      });
-
-          // Look for JSON data in the HTML
-          const jsonMatch = response.data.match(/window\.APP_INITIALIZATION_STATE\s*=\s*(\[.*?\]);/);
-          if (jsonMatch) {
-            try {
-              const data = JSON.parse(jsonMatch[1]);
-              console.log('Found JSON data in response');
-              // Parse the JSON data to extract reviews
-              // This is a simplified approach - you'd need to navigate the complex JSON structure
-            } catch (parseError) {
-              console.log('Failed to parse JSON data');
-            }
-          }
-
-          // If we get here, the request was successful but no reviews found
-          console.log(`✅ Axios request successful for ${url}, but no reviews extracted`);
-          
-        } catch (urlError) {
-          console.log(`⚠️ URL ${url} failed: ${urlError.message}`);
-          continue;
-        }
-      }
-
-      return [];
-    } catch (error) {
-      console.error('Axios scraping error:', error.message);
-      throw error;
-    }
-  }
-
-  // Method 3: Lightweight Puppeteer (if available)
-  async scrapeWithPuppeteerLite() {
-    // Only use Puppeteer if not in serverless environment
-    if (process.env.VERCEL || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-      throw new Error('Puppeteer not available in serverless environment');
-    }
-
-    try {
-      const browser = await puppeteer.launch({
-        headless: 'new',
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--disable-web-security'
-        ]
-      });
-
-      const page = await browser.newPage();
-      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-      
-      await page.goto(this.reviewsUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
-      
-      const reviews = await page.evaluate(() => {
-        const reviewElements = document.querySelectorAll('.jftiEf');
-        const reviews = [];
-
-        reviewElements.forEach((element, index) => {
+      for (const selector of selectors) {
+        const elements = $(selector);
+        console.log(`Found ${elements.length} elements with selector: ${selector}`);
+        
+        elements.each((index, element) => {
           try {
-            const name = element.querySelector('.d4r55, .TSUbDb')?.textContent?.trim() || `Reviewer ${index + 1}`;
-            const rating = 5; // Default rating
-            const date = element.querySelector('.rsqaWe, .DU9Pgb')?.textContent?.trim() || 'Recently';
-            const reviewText = element.querySelector('.wiI7pd, .MyEned')?.textContent?.trim() || '';
-            const profileImg = element.querySelector('img[data-src], img[src]')?.getAttribute('data-src') || 
-                              element.querySelector('img[data-src], img[src]')?.getAttribute('src');
+            const $el = $(element);
+            
+            const name = $el.find('.d4r55, .TSUbDb, .author-name').first().text().trim() || `Reviewer ${index + 1}`;
+            const rating = this.extractRating($el);
+            const date = $el.find('.rsqaWe, .DU9Pgb, .p2TkOb, .review-date').first().text().trim() || 'Recently';
+            const reviewText = $el.find('.wiI7pd, .MyEned, .Jtu6Td, .review-text').first().text().trim();
+            const profileImg = $el.find('img[data-src], img[src]').first().attr('data-src') || 
+                             $el.find('img[data-src], img[src]').first().attr('src');
 
             if (reviewText && reviewText.length > 10) {
               reviews.push({
-                id: `puppeteer_${index}`,
+                id: `live_${Date.now()}_${index}`,
                 name: name,
                 rating: rating,
                 date: date,
                 review: reviewText,
-                profileImage: profileImg
+                profileImage: profileImg,
+                isLive: true,
+                source: 'web_scraping',
+                scrapedAt: new Date().toISOString()
               });
             }
           } catch (error) {
-            console.log('Error extracting review:', error);
+            console.log('Error parsing review element:', error.message);
           }
         });
 
-        return reviews;
-      });
+        if (reviews.length > 0) {
+          console.log(`✅ Parsed ${reviews.length} reviews from HTML`);
+          return reviews;
+        }
+      }
 
-      await browser.close();
-      return reviews;
+      return [];
     } catch (error) {
-      console.error('Puppeteer scraping error:', error.message);
-      throw error;
+      console.error('HTML parsing error:', error);
+      return [];
     }
   }
 
-  // Google Maps Places API method (works in serverless)
-  async getReviewsFromAPI(forceRefresh = false) {
-    const placeId = 'ChIJN1t_tDeuEmsRUsoyG83frY4'; // Earth Footprint Place ID
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-    
-    if (!apiKey) {
-      console.log('⚠️ No Google Maps API key, trying web scraping...');
-      return await this.getReviewsFromWebScraping();
+  // Extract rating from element
+  extractRating($el) {
+    const ratingElement = $el.find('.kvMYJc, .Fam1ne, [aria-label*="star"], .rating').first();
+    if (ratingElement.length) {
+      const ratingText = ratingElement.attr('aria-label') || ratingElement.text();
+      const ratingMatch = ratingText.match(/(\d+)/);
+      return ratingMatch ? parseInt(ratingMatch[1]) : 5;
     }
+    return 5;
+  }
 
-    // Check cache first (unless force refresh)
-    if (!forceRefresh) {
-      const cached = this.cache.get('api_reviews');
-      if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
-        console.log('📦 Returning cached API reviews');
-        return cached.data;
-      }
-    }
-
+  // Extract reviews from embedded JSON
+  extractReviewsFromJSON(jsonMatches) {
     try {
-      console.log('🔄 Fetching fresh reviews from Google Maps API...');
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=reviews&key=${apiKey}`
-      );
-      
-      const data = await response.json();
-      
-      if (data.result && data.result.reviews) {
-        const reviews = data.result.reviews.map((review, index) => ({
-          id: `api_${index}`,
-          name: review.author_name,
-          rating: review.rating,
-          date: this.formatDate(review.time),
-          review: review.text,
-          profileImage: review.profile_photo_url || null
-        }));
+      for (const match of jsonMatches) {
+        const jsonStr = match.replace(/window\.APP_INITIALIZATION_STATE\s*=\s*/, '').replace(/;$/, '');
+        const data = JSON.parse(jsonStr);
         
-        // Cache the results
-        this.cache.set('api_reviews', {
-          data: reviews,
-          timestamp: Date.now()
-        });
-        
-        console.log(`✅ API reviews cached: ${reviews.length} reviews`);
-        return reviews;
+        // Navigate the complex JSON structure to find reviews
+        // This is a simplified approach - you'd need to traverse the actual structure
+        console.log('Parsed JSON data structure');
       }
     } catch (error) {
-      console.error('Google Maps API error:', error);
+      console.log('Failed to parse JSON data:', error.message);
     }
-    
-    return this.getStaticReviews();
+    return [];
   }
 
+  // Format date from timestamp
   formatDate(timestamp) {
     const date = new Date(timestamp * 1000);
     const now = new Date();
@@ -724,72 +283,10 @@ class GoogleMapsService {
     return `قبل ${Math.ceil(diffDays / 365)} سنوات`;
   }
 
-  // Fallback static reviews
-  getStaticReviews() {
-    return [
-      {
-        id: 'static_1',
-        name: "Moamen Khafagy",
-        rating: 5,
-        date: "قبل شهر",
-        review: "مكتب بصمة الأرض للإستشارات البيئية السرعة و الدقة والتنفيذ هو محل اهتمامهم والتواصل معهم قمة في الذوق و الإحترام و متابعة طلبات العميل لحظة بلحظة إلى أن يتم تسليم العميل التصاريح و التراخيص معتمدة .نتمنى لهم المزيد من التميز و النجاح الدائم. إن شاء الله",
-        profileImage: "https://lh3.googleusercontent.com/a/ACg8ocIpE3aKzhn_fBIV8f7H7gZCrB7blKCg7Aoi4vFue2o2ixptvQ=w36-h36-p-rp-mo-br100"
-      },
-      {
-        id: 'static_2',
-        name: "Saeed Salah 1418",
-        rating: 5,
-        date: "قبل شهر",
-        review: "مكتب بصمة الأرض للاستشارات البيئية من أميز المكاتب المتخصصة في المجال، ولمست فيهم الاحترافية والجدية. وأخص بالشكر المهندس فهد على تعامله الراقي وحرصه على تقديم أفضل ما عنده بكل إخلاص.واسكره علي سعة صدره وان شاء الله كل التعاملات القادمه معهم انصح فيهم جدا",
-        profileImage: "https://lh3.googleusercontent.com/a/ACg8ocLc2WaGn0mkL4i_wPe525ltu7AtYmMtlsnQe39hmqHUbS6SKA=w36-h36-p-rp-mo-br100"
-      },
-      {
-        id: 'static_3',
-        name: "عبدالله العنزي",
-        rating: 5,
-        date: "قبل شهرين",
-        review: "مكتب تصاريح بيئيه واستشارات شاب سعودي واقف على شغله الله يعطيه العافية",
-        profileImage: "https://lh3.googleusercontent.com/a/ACg8ocLvID-PivQ42DPKaiTdzA717fZtEvffx37bL66rbOXu5g5byg=w36-h36-p-rp-mo-ba3-br100"
-      },
-      {
-        id: 'static_4',
-        name: "M6B",
-        rating: 5,
-        date: "قبل أسبوع",
-        review: "شكر خاص لتعاملهم الراقي و خدمتهم السريعة و سرعة استجابتهم بالواتساب لين استخرجت التصاريح",
-        profileImage: "https://lh3.googleusercontent.com/a-/ALV-UjXIHRNyEK79lBa7FqdoBdEYRTBH9UqrrGyW5JScY1mIEopTFnM=w36-h36-p-rp-mo-ba2-br100"
-      },
-      {
-        id: 'static_5',
-        name: "Dodge",
-        rating: 5,
-        date: "قبل أسبوع",
-        review: "مكتب محترف وسريع ودقيق وتعامل أكثر من رائع . يستاهلون ألف نجمه ❤️",
-        profileImage: "https://lh3.googleusercontent.com/a/ACg8ocI7R2Cvss9ut4vOEyhWAIQ1UWbzbpgjhxpGVtiBqv1AOmor_w=w36-h36-p-rp-mo-br100"
-      },
-      {
-        id: 'static_6',
-        name: "جاف الإعلانية خدمات التصميم والطباعة",
-        rating: 5,
-        date: "قبل 3 أشهر",
-        review: "مكتب مميز وسريع بالاجراءات اصدر لنا تصريح بيئي ، والأخ فهد ما يقصر واضح وخدوم 🌷🌷",
-        profileImage: "https://lh3.googleusercontent.com/a-/ALV-UjXK1dl7bmEx32NKSeEg3aOn3nmp3NI_VJtozkMlQT7Q57Qk7kQn=w36-h36-p-rp-mo-br100"
-      },
-      {
-        id: 'static_7',
-        name: "Tarem Saleh",
-        rating: 5,
-        date: "قبل شهر",
-        review: "سريع بالانجاز التصاريح",
-        profileImage: "https://lh3.googleusercontent.com/a/ACg8ocLE7Y3LhnwlOk2FxjrjLtV-g2esx1zrV3zEvbitlpZf_JfGtA=w36-h36-p-rp-mo-br100"
-      }
-    ];
-  }
-
-  // Clear cache manually
+  // Clear cache
   clearCache() {
     this.cache.clear();
-    console.log('Reviews cache cleared');
+    console.log('Live reviews cache cleared');
   }
 }
 

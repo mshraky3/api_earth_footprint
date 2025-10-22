@@ -116,61 +116,18 @@ app.get('/', (req, res) => {
     endpoints: {
       contact: '/api/contact',
       newsletter: '/api/newsletter',
-      reviews: '/api/reviews',
-      debug: '/api/debug',
-      testAxios: '/api/test-axios'
+      reviews: '/api/reviews'
     },
     status: 'active',
-    axiosEnabled: true
+    liveScraping: true
   });
 });
 
-// Debug endpoint to check environment variables
-app.get('/api/debug', (req, res) => {
-  res.json({
-    environment: {
-      EMAIL_USER: EMAIL_USER ? 'SET' : 'MISSING',
-      EMAIL_PASS: EMAIL_PASS ? 'SET' : 'MISSING',
-      EMAIL_HOST: EMAIL_HOST ? 'SET' : 'MISSING',
-      RECIPIENT_EMAIL: RECIPIENT_EMAIL ? 'SET' : 'MISSING',
-      RESERVE_EMAIL: RESERVE_EMAIL ? 'SET' : 'MISSING'
-    },
-    nodeEnv: process.env.NODE_ENV
-  });
-});
 
-// Test endpoint to verify axios connectivity
-app.get('/api/test-axios', async (req, res) => {
-  try {
-    // Test axios with a simple external API call
-    const response = await axios.get('https://httpbin.org/get', {
-      timeout: 5000,
-      headers: {
-        'User-Agent': 'Earth-Footprint-API/1.0'
-      }
-    });
-    
-    res.json({
-      success: true,
-      message: 'Axios is working correctly',
-      externalApiResponse: {
-        status: response.status,
-        data: response.data
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Axios test failed',
-      details: error.message
-    });
-  }
-});
-
-// Google Maps Reviews endpoint
+// Live Google Maps Reviews endpoint
 app.get('/api/reviews', async (req, res) => {
   try {
-    console.log('Fetching Google Maps reviews...');
+    console.log('🔄 Fetching live Google Maps reviews...');
     const reviews = await googleMapsService.getReviews();
     
     res.json({
@@ -178,64 +135,13 @@ app.get('/api/reviews', async (req, res) => {
       data: reviews,
       count: reviews.length,
       timestamp: new Date().toISOString(),
-      source: 'google_maps'
+      source: 'live_scraping'
     });
   } catch (error) {
-    console.error('Reviews API error:', error);
+    console.error('Live reviews API error:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch reviews',
-      details: error.message,
-      fallback: 'Using static reviews'
-    });
-  }
-});
-
-// Clear reviews cache endpoint (for admin use)
-app.post('/api/reviews/clear-cache', (req, res) => {
-  try {
-    googleMapsService.clearCache();
-    res.json({
-      success: true,
-      message: 'Reviews cache cleared successfully'
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to clear cache',
-      details: error.message
-    });
-  }
-});
-
-// Force refresh reviews endpoint (gets fresh data)
-app.get('/api/reviews/refresh', async (req, res) => {
-  try {
-    console.log('🔄 Force refresh reviews endpoint called');
-    
-    // Clear cache first
-    googleMapsService.clearCache();
-    
-    // Force refresh from API (if available)
-    const reviews = await googleMapsService.getReviewsFromAPI(true);
-    
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    
-    res.json({
-      success: true,
-      data: reviews,
-      count: reviews.length,
-      timestamp: new Date().toISOString(),
-      refreshed: true,
-      source: 'force_refresh'
-    });
-  } catch (error) {
-    console.error('Force refresh error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to force refresh reviews',
+      error: 'Failed to fetch live reviews',
       details: error.message
     });
   }
