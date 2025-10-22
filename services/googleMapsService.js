@@ -34,7 +34,7 @@ class GoogleMapsService {
         return reviews;
       }
 
-      // If no live data, return empty array (no static fallback)
+      // If no live data, return empty array
       console.log('❌ No live reviews found');
       return [];
       
@@ -47,14 +47,18 @@ class GoogleMapsService {
   async scrapeLiveReviews() {
     const approaches = [
       () => this.scrapeWithGoogleMapsAPI(),
-      () => this.scrapeWithDirectRequest(),
-      () => this.scrapeWithAlternativeURLs()
+      () => this.scrapeWithProxyRequest(),
+      () => this.scrapeWithMobileUserAgent(),
+      () => this.scrapeWithAlternativeURLs(),
+      () => this.scrapeWithJSONExtraction(),
+      () => this.scrapeWithDirectRequest()
     ];
 
     for (const approach of approaches) {
       try {
         const reviews = await approach();
         if (reviews && reviews.length > 0) {
+          console.log(`✅ Scraping approach successful: ${reviews.length} reviews`);
           return reviews;
         }
       } catch (error) {
@@ -103,7 +107,102 @@ class GoogleMapsService {
     }
   }
 
-  // Method 2: Direct scraping with enhanced headers
+  // Method 2: Proxy request to avoid detection
+  async scrapeWithProxyRequest() {
+    try {
+      console.log('🌐 Trying proxy request...');
+      
+      const response = await axios.get(this.businessUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'none',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'X-Forwarded-For': '192.168.1.1',
+          'X-Real-IP': '192.168.1.1'
+        },
+        timeout: 20000,
+        maxRedirects: 5,
+        validateStatus: function (status) {
+          return status >= 200 && status < 300;
+        }
+      });
+
+      return this.parseReviewsFromHTML(response.data);
+      
+    } catch (error) {
+      console.log('Proxy scraping failed:', error.message);
+      throw error;
+    }
+  }
+
+  // Method 3: Mobile user agent to avoid detection
+  async scrapeWithMobileUserAgent() {
+    try {
+      console.log('🌐 Trying mobile user agent...');
+      
+      const response = await axios.get(this.businessUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        timeout: 15000,
+        maxRedirects: 5
+      });
+
+      return this.parseReviewsFromHTML(response.data);
+      
+    } catch (error) {
+      console.log('Mobile scraping failed:', error.message);
+      throw error;
+    }
+  }
+
+  // Method 4: JSON extraction from embedded data
+  async scrapeWithJSONExtraction() {
+    try {
+      console.log('🌐 Trying JSON extraction...');
+      
+      const response = await axios.get(this.businessUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'ar,en-US;q=0.7,en;q=0.3',
+          'Referer': 'https://www.google.com/',
+          'Cache-Control': 'no-cache'
+        },
+        timeout: 15000
+      });
+
+      // Look for embedded JSON data
+      const jsonMatches = response.data.match(/window\.APP_INITIALIZATION_STATE\s*=\s*(\[.*?\]);/g);
+      if (jsonMatches) {
+        console.log('Found embedded JSON data');
+        return this.extractReviewsFromJSON(jsonMatches);
+      }
+
+      return this.parseReviewsFromHTML(response.data);
+      
+    } catch (error) {
+      console.log('JSON extraction failed:', error.message);
+      throw error;
+    }
+  }
+
+  // Method 5: Direct scraping with enhanced headers
   async scrapeWithDirectRequest() {
     try {
       console.log('🌐 Trying direct scraping...');
@@ -259,14 +358,67 @@ class GoogleMapsService {
         const jsonStr = match.replace(/window\.APP_INITIALIZATION_STATE\s*=\s*/, '').replace(/;$/, '');
         const data = JSON.parse(jsonStr);
         
-        // Navigate the complex JSON structure to find reviews
-        // This is a simplified approach - you'd need to traverse the actual structure
-        console.log('Parsed JSON data structure');
+        console.log('Parsed JSON data structure, searching for reviews...');
+        
+        // Search for reviews in the JSON structure
+        const reviews = this.findReviewsInJSON(data);
+        if (reviews.length > 0) {
+          console.log(`✅ Found ${reviews.length} reviews in JSON data`);
+          return reviews;
+        }
       }
     } catch (error) {
       console.log('Failed to parse JSON data:', error.message);
     }
     return [];
+  }
+
+  // Recursively search for reviews in JSON structure
+  findReviewsInJSON(obj, reviews = []) {
+    if (typeof obj !== 'object' || obj === null) return reviews;
+    
+    if (Array.isArray(obj)) {
+      for (const item of obj) {
+        this.findReviewsInJSON(item, reviews);
+      }
+    } else {
+      for (const [key, value] of Object.entries(obj)) {
+        // Look for review-like structures
+        if (key.includes('review') || key.includes('rating') || key.includes('author')) {
+          if (typeof value === 'object' && value !== null) {
+            const review = this.extractReviewFromObject(value);
+            if (review) {
+              reviews.push(review);
+            }
+          }
+        }
+        this.findReviewsInJSON(value, reviews);
+      }
+    }
+    
+    return reviews;
+  }
+
+  // Extract review data from object
+  extractReviewFromObject(obj) {
+    try {
+      if (obj.author_name || obj.text || obj.rating) {
+        return {
+          id: `json_${Date.now()}_${Math.random()}`,
+          name: obj.author_name || obj.name || 'Anonymous',
+          rating: obj.rating || 5,
+          date: this.formatDate(obj.time || Date.now() / 1000),
+          review: obj.text || obj.review || '',
+          profileImage: obj.profile_photo_url || obj.profileImage || null,
+          isLive: true,
+          source: 'json_extraction',
+          scrapedAt: new Date().toISOString()
+        };
+      }
+    } catch (error) {
+      console.log('Error extracting review from object:', error.message);
+    }
+    return null;
   }
 
   // Format date from timestamp
@@ -282,6 +434,7 @@ class GoogleMapsService {
     if (diffDays < 365) return `قبل ${Math.ceil(diffDays / 30)} أشهر`;
     return `قبل ${Math.ceil(diffDays / 365)} سنوات`;
   }
+
 
   // Clear cache
   clearCache() {
