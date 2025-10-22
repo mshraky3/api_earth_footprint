@@ -11,6 +11,12 @@ class GoogleMapsService {
 
   async getReviews() {
     try {
+      // Check if we're in a serverless environment
+      if (process.env.VERCEL || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+        console.log('Serverless environment detected, using static reviews');
+        return this.getStaticReviews();
+      }
+
       // Check cache first
       const cached = this.cache.get('reviews');
       if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
@@ -44,17 +50,18 @@ class GoogleMapsService {
       }
     } catch (error) {
       console.error('Error fetching reviews:', error);
-      // Return cached data if available, even if expired
-      const cached = this.cache.get('reviews');
-      if (cached) {
-        console.log('Returning expired cached reviews due to error');
-        return cached.data;
-      }
-      throw error;
+      console.log('Falling back to static reviews');
+      return this.getStaticReviews();
     }
   }
 
   async scrapeReviews() {
+    // Check if we're in a serverless environment (Vercel, Netlify, etc.)
+    if (process.env.VERCEL || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+      console.log('Serverless environment detected, using static reviews');
+      return this.getStaticReviews();
+    }
+
     let browser;
     try {
       browser = await puppeteer.launch({
@@ -203,7 +210,8 @@ class GoogleMapsService {
 
     } catch (error) {
       console.error('Scraping error:', error);
-      throw error;
+      console.log('Falling back to static reviews due to scraping error');
+      return this.getStaticReviews();
     } finally {
       if (browser) {
         await browser.close();
