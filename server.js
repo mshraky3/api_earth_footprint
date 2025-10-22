@@ -3,6 +3,7 @@ import cors from 'cors';
 import nodemailer from 'nodemailer';
 import axios from 'axios';
 import dotenv from 'dotenv';
+import googleMapsService from './services/googleMapsService.js';
 
 // Load environment variables
 dotenv.config();
@@ -40,6 +41,13 @@ if (!EMAIL_USER || !EMAIL_PASS || !EMAIL_HOST || !RECIPIENT_EMAIL) {
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Compression middleware
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'public, max-age=300'); // 5 minutes cache
+  res.setHeader('Vary', 'Accept-Encoding');
+  next();
+});
 
 // Create transporter for nodemailer
 const createTransporter = () => {
@@ -100,6 +108,7 @@ app.get('/', (req, res) => {
     endpoints: {
       contact: '/api/contact',
       newsletter: '/api/newsletter',
+      reviews: '/api/reviews',
       debug: '/api/debug',
       testAxios: '/api/test-axios'
     },
@@ -145,6 +154,47 @@ app.get('/api/test-axios', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Axios test failed',
+      details: error.message
+    });
+  }
+});
+
+// Google Maps Reviews endpoint
+app.get('/api/reviews', async (req, res) => {
+  try {
+    console.log('Fetching Google Maps reviews...');
+    const reviews = await googleMapsService.getReviews();
+    
+    res.json({
+      success: true,
+      data: reviews,
+      count: reviews.length,
+      timestamp: new Date().toISOString(),
+      source: 'google_maps'
+    });
+  } catch (error) {
+    console.error('Reviews API error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch reviews',
+      details: error.message,
+      fallback: 'Using static reviews'
+    });
+  }
+});
+
+// Clear reviews cache endpoint (for admin use)
+app.post('/api/reviews/clear-cache', (req, res) => {
+  try {
+    googleMapsService.clearCache();
+    res.json({
+      success: true,
+      message: 'Reviews cache cleared successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clear cache',
       details: error.message
     });
   }
