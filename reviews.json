@@ -1,0 +1,103 @@
+{
+  "timestamp": "2025-10-23T12:51:28.406Z",
+  "reviews": [
+    {
+      "id": "apify_review_0",
+      "name": "Muhmod Alshraky",
+      "rating": 5,
+      "review": "والله يا مكتب بصمة الأرض للاستشارات البيئية، لقيت الجدية والاحترام من أول لحظة. وأخص بالشكر المهندس رائد، اللي كان تعامله فعلاً راقي ومحترم، وما يقدر ينكر إنه حريص كل الحرص يسوي الأمور بأفضل شكل، وبإخلاص كبير. ويا ليت كل الناس تتعامل هالطريقة ، خصوصًا سعة صدره وطيبة قلبه في كل المواقف. وإن شاء الله أي تعامل قادم معهم يكون أكيد، وأنا أضمنهم للجميع بدون تردد.",
+      "profileImage": null,
+      "date": null,
+      "source": "Google Maps (Apify)",
+      "reviewUrl": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sCi9DQUlRQUNvZENodHljRjlvT2s4eFpFbHlkMG80Y25KUFluaGZMVkZhWW1OQ01sRRAB!2m1!1s0x0:0x1627f4ca3423d980!3m1!1s2@1:CAIQACodChtycF9oOk8xZElyd0o4cnJPYnhfLVFaYmNCMlE%7C0cyEyKmFtOX%7C?hl=ar",
+      "title": "مكتب بصمة الارض للاستشارات البيئية"
+    },
+    {
+      "id": "apify_review_1",
+      "name": "Dodge",
+      "rating": 5,
+      "review": "مكتب محترف وسريع ودقيق وتعامل أكثر من رائع .\nيستاهلون ألف نجمه ❤️",
+      "profileImage": null,
+      "date": null,
+      "source": "Google Maps (Apify)",
+      "reviewUrl": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sCi9DQUlRQUNvZENodHljRjlvT2toNlZWVmpZelpQTTBkaVMzcG5ZM0ZNVUdndFNGRRAB!2m1!1s0x0:0x1627f4ca3423d980!3m1!1s2@1:CAIQACodChtycF9oOkh6VVVjYzZPM0diS3pnY3FMUGgtSFE%7C0cuEXZtbF3j%7C?hl=ar",
+      "title": "مكتب بصمة الارض للاستشارات البيئية"
+    },
+    {
+      "id": "apify_review_2",
+      "name": "M6B",
+      "rating": 5,
+      "review": "شكر خاص لتعاملهم الراقي و خدمتهم السريعة\nو سرعة استجابتهم بالواتساب لين استخرجت التصاريح",
+      "profileImage": null,
+      "date": null,
+      "source": "Google Maps (Apify)",
+      "reviewUrl": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sCi9DQUlRQUNvZENodHljRjlvT2pJM1ZVeFJXWE15ZEVsRFptdzFWVlF5ZUZKTmFrRRAB!2m1!1s0x0:0x1627f4ca3423d980!3m1!1s2@1:CAIQACodChtycF9oOjI3VUxRWXMydElDZmw1VVQyeFJNakE%7C0ctvkxQ4uzA%7C?hl=ar",
+      "title": "مكتب بصمة الارض للاستشارات البيئية"
+    },
+    {
+      "id": "apify_review_3",
+      "name": "Saeed Salah 1418",
+      "rating": 5,
+      "review": "“مكتب بصمة الأرض للاستشارات البيئية من أميز المكاتب المتخصصة في المجال، ولمست فيهم الاحترافية والجدية. وأخص بالشكر المهندس فهد على تعامله الراقي وحرصه على تقديم أفضل ما عنده بكل إخلاص.واسكره علي سعة صدره وان شاء الله كل التعاملات القادمه معهم  انصح فيهم جدا",
+      "profileImage": null,
+      "date": null,
+      "source": "Google Maps (Apify)",
+      "reviewUrl": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sCi9DQUlRQUNvZENodHljRjlvT2tWUVJsWlNUMnMxTjB4WFNteHZZemt0UVdOaVdWRRAB!2m1!1s0x0:0x1627f4ca3423d980!3m1!1s2@1:CAIQACodChtycF9oOkVQRlZST2s1N0xXSmxvYzktQWNiWVE%7C0cn-iyLzpdr%7C?hl=ar",
+      "title": "مكتب بصمة الارض للاستشارات البيئية"
+    },
+    {
+      "id": "apify_review_4",
+      "name": "Tarem Saleh",
+      "rating": 5,
+      "review": "سريع بالانجاز التصاريح",
+      "profileImage": null,
+      "date": null,
+      "source": "Google Maps (Apify)",
+      "reviewUrl": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sCi9DQUlRQUNvZENodHljRjlvT25KclZ6Rk5kME5aWDFwZmFYRTVSa05YYUVnM2FYYxAB!2m1!1s0x0:0x1627f4ca3423d980!3m1!1s2@1:CAIQACodChtycF9oOnJrVzFNd0NZX1pfaXE5RkNXaEg3aXc%7C0clheFanmVN%7C?hl=ar",
+      "title": "مكتب بصمة الارض للاستشارات البيئية"
+    },
+    {
+      "id": "apify_review_5",
+      "name": "Moamen Khafagy",
+      "rating": 5,
+      "review": "مكتب بصمة الأرض للإستشارات البيئية\nالسرعة و الدقة والتنفيذ هو محل اهتمامهم والتواصل معهم قمة  في الذوق و الإحترام و متابعة طلبات العميل لحظة بلحظة إلى أن يتم تسليم العميل التصاريح و التراخيص معتمدة .نتمنى لهم المزيد من التميز و النجاح الدائم.            إن شاء الله",
+      "profileImage": null,
+      "date": null,
+      "source": "Google Maps (Apify)",
+      "reviewUrl": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sCi9DQUlRQUNvZENodHljRjlvT2xGWlp6aDJORFI1TjNwWWR5MVpVMnRJUlZkc09WRRAB!2m1!1s0x0:0x1627f4ca3423d980!3m1!1s2@1:CAIQACodChtycF9oOlFZZzh2NDR5N3pYdy1ZU2tIRVdsOVE%7C0cfPnIt0P1X%7C?hl=ar",
+      "title": "مكتب بصمة الارض للاستشارات البيئية"
+    },
+    {
+      "id": "apify_review_6",
+      "name": "عبدالله العنزي",
+      "rating": 5,
+      "review": "مكتب تصاريح بيئيه\nواستشارات\nشاب سعودي واقف على شغله الله يعطيه العافية\nيستحق الدعم من اصحاب الاعمال ..\n\nتم عمل تصريح في وقت قياسي ودقة في العمل.",
+      "profileImage": null,
+      "date": null,
+      "source": "Google Maps (Apify)",
+      "reviewUrl": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sCi9DQUlRQUNvZENodHljRjlvT2s5NldFRmZOWFV3VVZodFptWnViV3hIZWpCdWVVRRAB!2m1!1s0x0:0x1627f4ca3423d980!3m1!1s2@1:CAIQACodChtycF9oOk96WEFfNXUwUVhtZmZubWxHejBueUE%7C0ccszf52aKl%7C?hl=ar",
+      "title": "مكتب بصمة الارض للاستشارات البيئية"
+    },
+    {
+      "id": "apify_review_7",
+      "name": "جاف الإعلانية خدمات التصميم والطباعة",
+      "rating": 5,
+      "review": "مكتب مميز وسريع بالاجراءات اصدر لنا تصريح بيئي ، والأخ فهد ما يقصر واضح وخدوم 🌷🌷",
+      "profileImage": null,
+      "date": null,
+      "source": "Google Maps (Apify)",
+      "reviewUrl": "https://www.google.com/maps/reviews/data=!4m8!14m7!1m6!2m5!1sCi9DQUlRQUNvZENodHljRjlvT25KU05YSnFjV1k0ZVRkNmVVazRkWE5TVlRnM05IYxAB!2m1!1s0x0:0x1627f4ca3423d980!3m1!1s2@1:CAIQACodChtycF9oOnJSNXJqcWY4eTd6eUk4dXNSVTg3NHc%7C0cSD3s5-eXq%7C?hl=ar",
+      "title": "مكتب بصمة الارض للاستشارات البيئية"
+    }
+  ],
+  "count": 1,
+  "source": "apify_google_maps",
+  "dailyCount": {
+    "date": "2025-10-23",
+    "count": 1
+  },
+  "monthlyCount": {
+    "month": "2025-10",
+    "count": 1
+  }
+}

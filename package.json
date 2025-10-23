@@ -20,6 +20,7 @@
   "author": "Earth Footprint",
   "license": "ISC",
   "dependencies": {
+    "apify-client": "^2.19.0",
     "axios": "^1.6.0",
     "cheerio": "^1.0.0-rc.12",
     "cors": "^2.8.5",
