@@ -3,7 +3,7 @@ import cors from 'cors';
 import nodemailer from 'nodemailer';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import googleMapsService from './services/googleMapsService.js';
+import apifyService from './services/apifyService.js';
 
 // Load environment variables
 dotenv.config();
@@ -42,7 +42,11 @@ if (!EMAIL_USER || !EMAIL_PASS || !EMAIL_HOST || !RECIPIENT_EMAIL) {
 app.use(cors({
   origin: [
     'https://erthfc.com',
-    'https://www.erthfc.com'
+    'https://www.erthfc.com',
+    'http://localhost:5173',  // Vite dev server
+    'http://localhost:3000',  // Alternative dev port
+    'http://127.0.0.1:5173', // Alternative localhost
+    'http://127.0.0.1:3000'   // Alternative localhost
   ],
   credentials: true
 }));
@@ -122,24 +126,65 @@ app.get('/', (req, res) => {
 });
 
 
-// Live Google Maps Reviews endpoint
+// Google Maps Reviews endpoint (with Apify caching)
 app.get('/api/reviews', async (req, res) => {
   try {
-    console.log('🔄 Fetching live Google Maps reviews...');
-    const reviews = await googleMapsService.getReviews();
+    const forceRefresh = req.query.refresh === 'true';
+    console.log('🔄 Fetching Google Maps reviews...', forceRefresh ? '(force refresh)' : '(cached)');
+    
+    const reviews = await apifyService.getReviews(forceRefresh);
+    const cacheStatus = apifyService.getCacheStatus();
     
     res.json({
       success: true,
       data: reviews,
       count: reviews.length,
       timestamp: new Date().toISOString(),
-      source: 'live_scraping'
+      source: 'apify_google_maps',
+      cache: cacheStatus,
+      refreshed: forceRefresh,
+      limits: {
+        daily: cacheStatus.counters.daily,
+        monthly: cacheStatus.counters.monthly,
+        limits: cacheStatus.limits
+      }
     });
   } catch (error) {
-    console.error('Live reviews API error:', error);
+    console.error('Reviews API error:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch live reviews',
+      error: 'Failed to fetch reviews',
+      details: error.message
+    });
+  }
+});
+
+// Force refresh reviews endpoint
+app.get('/api/reviews/refresh', async (req, res) => {
+  try {
+    console.log('🔄 Force refreshing reviews from Apify...');
+    const reviews = await apifyService.getReviews(true);
+    const cacheStatus = apifyService.getCacheStatus();
+    
+    res.json({
+      success: true,
+      data: reviews,
+      count: reviews.length,
+      timestamp: new Date().toISOString(),
+      source: 'apify_google_maps',
+      cache: cacheStatus,
+      refreshed: true,
+      limits: {
+        daily: cacheStatus.counters.daily,
+        monthly: cacheStatus.counters.monthly,
+        limits: cacheStatus.limits
+      }
+    });
+  } catch (error) {
+    console.error('Force refresh error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to refresh reviews',
       details: error.message
     });
   }
