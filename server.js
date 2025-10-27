@@ -254,7 +254,7 @@ app.post('/api/contact', async (req, res) => {
       <p><strong>البريد الإلكتروني:</strong> ${email}</p>
       <p><strong>الهاتف:</strong> ${phone || 'غير محدد'}</p>
       <p><strong>المسمى الوظيفي:</strong> ${jobTitle || 'غير محدد'}</p>
-      <p><strong>اسم المكتب:</strong> ${officeName || 'غير محدد'}</p>
+      <p><strong>اسم الشركة:</strong> ${officeName || 'غير محدد'}</p>
       <p><strong>الخدمة المطلوبة:</strong> ${serviceNames[service] || service || 'غير محدد'}</p>
       <p><strong>الرسالة:</strong></p>
       <p>${message}</p>
