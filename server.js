@@ -17,7 +17,7 @@ const EMAIL_PASS = process.env.EMAIL_PASS;
 const EMAIL_HOST = process.env.EMAIL_HOST;
 const EMAIL_PORT = process.env.EMAIL_PORT || 465;
 const EMAIL_SECURE = process.env.EMAIL_SECURE === 'true' || true;
-const RECIPIENT_EMAIL = process.env.RECIPIENT_EMAIL || 'fahad.admin@erthfc.com';
+const RECIPIENT_EMAIL = process.env.RECIPIENT_EMAIL || 'support@erathfc.com';
 const RESERVE_EMAIL = process.env.RESERVE_EMAIL;
 const SENDER_EMAIL = process.env.SENDER_EMAIL || 'customer-service@erthfc.com';
 
